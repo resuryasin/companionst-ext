@@ -1,44 +1,65 @@
 import * as vscode from 'vscode';
 
-import { getBongoState } from './state';
+import { BongoState } from './state';
 
 class CompanionWebviewViewProvider implements vscode.WebviewViewProvider {
-    constructor(private readonly context: vscode.ExtensionContext) {}
-  
-    public resolveWebviewView(
-      webviewView: vscode.WebviewView
-    ): void {
-      webviewView.webview.options = {
-        enableScripts: true,
-      };
-      webviewView.webview.html = this.getWebviewContent(this.context, webviewView.webview);
-      
-      const bongoFrameGenerator = getBongoState();
+  constructor(private readonly context: vscode.ExtensionContext) { }
 
-      let typeCommand = vscode.commands.registerCommand('type', (...args) => {
-        webviewView.webview.postMessage(bongoFrameGenerator.next().value);
-        return vscode.commands.executeCommand('default:type', ...args);
-      });
-      this.context.subscriptions.push(typeCommand);
-      webviewView.webview.postMessage({ command: 'init', text: 'Ready to type!' });
-  
-      webviewView.onDidDispose(
-        () => {
-          typeCommand.dispose();
-        },
-        null,
-        this.context.subscriptions
-      );
-    }
-  
-    private getWebviewContent(context: vscode.ExtensionContext, webview: vscode.Webview) {
-      const bongoRightPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'bongo_right.png');
-      const bongoLeftPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'bongo_left.png');
-      const bongoMiddlePath = vscode.Uri.joinPath(context.extensionUri, 'media', 'bongo_middle.png');
-      const bongoRightUri = webview.asWebviewUri(bongoRightPath);
-      const bongoLeftUri = webview.asWebviewUri(bongoLeftPath);
-      const bongoMiddleUri = webview.asWebviewUri(bongoMiddlePath);
-      return `
+  public resolveWebviewView(
+    webviewView: vscode.WebviewView
+  ): void {
+    webviewView.webview.options = {
+      enableScripts: true,
+    };
+    webviewView.webview.html = this.getWebviewContent(this.context, webviewView.webview);
+
+    const typingListener = vscode.workspace.onDidChangeTextDocument((event) => {
+      const editor = vscode.window.activeTextEditor;
+
+      const leftSideRegex = /^[qwertasdfzxcvb12345!@#$%`~]|(\t)$/i;
+      const rightSideRegex = /^[yuiophjkl;'nm,<>.\/:"?67890^&*-=_+ \}\]\)]|(\[\]|\{\}|\(\)|\n|\r)$/i;
+
+      if (editor && event.document === editor.document) {
+        const changes = event.contentChanges;
+
+        if (changes.length > 0) {
+          const textChange = changes[0];
+
+          if (textChange.text.length > 0) {
+            const typedChar = textChange.text;
+            if (leftSideRegex.test(typedChar)) {
+              webviewView.webview.postMessage(BongoState.LEFT.toString());
+            } else if (rightSideRegex.test(typedChar)) {
+              webviewView.webview.postMessage(BongoState.RIGHT.toString());
+            }
+
+            vscode.window.showInformationMessage('Typing detected!');
+          }
+        }
+      }
+    });
+
+
+    this.context.subscriptions.push(typingListener);
+    webviewView.webview.postMessage({ command: 'init', text: 'Ready to type!' });
+
+    webviewView.onDidDispose(
+      () => {
+        typingListener.dispose();
+      },
+      null,
+      this.context.subscriptions
+    );
+  }
+
+  private getWebviewContent(context: vscode.ExtensionContext, webview: vscode.Webview) {
+    const bongoRightPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'bongo_right.png');
+    const bongoLeftPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'bongo_left.png');
+    const bongoMiddlePath = vscode.Uri.joinPath(context.extensionUri, 'media', 'bongo_middle.png');
+    const bongoRightUri = webview.asWebviewUri(bongoRightPath);
+    const bongoLeftUri = webview.asWebviewUri(bongoLeftPath);
+    const bongoMiddleUri = webview.asWebviewUri(bongoMiddlePath);
+    return `
       <!DOCTYPE html>
       <html lang="en">
         <head>
@@ -69,11 +90,11 @@ class CompanionWebviewViewProvider implements vscode.WebviewViewProvider {
               bongoLeft.hidden = true;
               bongoRight.hidden = false;
             }
-            timeout = setTimeout(() => {bongoLeft.hidden = true; bongoRight.hidden = true; bongoMiddle.hidden = false; }, 200);
+            timeout = setTimeout(() => {bongoLeft.hidden = true; bongoRight.hidden = true; bongoMiddle.hidden = false; }, 100);
           });
         </script>
       </html>`;
-    }
   }
+}
 
 export { CompanionWebviewViewProvider };

@@ -16,4 +16,4 @@ function* getBongoState() {
 	}
 }
 
-export { getBongoState };
+export { BongoState };
