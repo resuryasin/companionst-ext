@@ -8,9 +8,7 @@ class CompanionWebviewViewProvider implements vscode.WebviewViewProvider {
   public resolveWebviewView(
     webviewView: vscode.WebviewView
   ): void {
-    webviewView.webview.options = {
-      enableScripts: true,
-    };
+    webviewView.webview.options = { enableScripts: true };
     webviewView.webview.html = this.getWebviewContent(this.context, webviewView.webview);
 
     const typingListener = vscode.workspace.onDidChangeTextDocument((event) => {
@@ -22,19 +20,16 @@ class CompanionWebviewViewProvider implements vscode.WebviewViewProvider {
       if (editor && event.document === editor.document) {
         const changes = event.contentChanges;
 
-        if (changes.length > 0) {
-          const textChange = changes[0];
+        if (!changes || changes.length === 0) { return; }
 
-          if (textChange.text.length > 0) {
-            const typedChar = textChange.text;
-            if (leftSideRegex.test(typedChar)) {
-              webviewView.webview.postMessage(BongoState.LEFT.toString());
-            } else if (rightSideRegex.test(typedChar)) {
-              webviewView.webview.postMessage(BongoState.RIGHT.toString());
-            }
+        const textChange = changes[0];
+        if (!textChange) { return; }
 
-            vscode.window.showInformationMessage('Typing detected!');
-          }
+        const typedChar = textChange.text;
+        if (leftSideRegex.test(typedChar)) {
+          webviewView.webview.postMessage(BongoState.LEFT.toString());
+        } else if (rightSideRegex.test(typedChar)) {
+          webviewView.webview.postMessage(BongoState.RIGHT.toString());
         }
       }
     });
@@ -44,9 +39,7 @@ class CompanionWebviewViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.postMessage({ command: 'init', text: 'Ready to type!' });
 
     webviewView.onDidDispose(
-      () => {
-        typingListener.dispose();
-      },
+      () => { typingListener.dispose(); },
       null,
       this.context.subscriptions
     );
