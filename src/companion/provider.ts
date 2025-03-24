@@ -28,7 +28,7 @@ class CompanionWebviewViewProvider implements vscode.WebviewViewProvider {
         const typedChar = textChange.text;
         if (leftSideRegex.test(typedChar)) {
           webviewView.webview.postMessage(BongoState.LEFT.toString());
-        } else if (rightSideRegex.test(typedChar)) {
+        } else if (rightSideRegex.test(typedChar) || typedChar === '') {
           webviewView.webview.postMessage(BongoState.RIGHT.toString());
         }
       }
